@@ -463,7 +463,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Ticker symbol", required: true },
+                                ticker: { type: "string", description: "Ticker symbol" },
                                 date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
                                 newer_than: { type: "string", description: "Newer than timestamp" },
                                 older_than: { type: "string", description: "Older than timestamp" },
@@ -509,7 +509,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Ticker symbol", required: true }
+                                ticker: { type: "string", description: "Ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -521,7 +521,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "ETF ticker symbol", required: true }
+                                ticker: { type: "string", description: "ETF ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -532,7 +532,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "ETF ticker symbol", required: true }
+                                ticker: { type: "string", description: "ETF ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -543,7 +543,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "ETF ticker symbol", required: true }
+                                ticker: { type: "string", description: "ETF ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -554,7 +554,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "ETF ticker symbol", required: true }
+                                ticker: { type: "string", description: "ETF ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -565,7 +565,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "ETF ticker symbol", required: true }
+                                ticker: { type: "string", description: "ETF ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -643,7 +643,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Stock ticker symbol", required: true }
+                                ticker: { type: "string", description: "Stock ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -654,7 +654,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Stock ticker symbol", required: true }
+                                ticker: { type: "string", description: "Stock ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -665,7 +665,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Stock ticker symbol", required: true }
+                                ticker: { type: "string", description: "Stock ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -676,7 +676,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Stock ticker symbol", required: true }
+                                ticker: { type: "string", description: "Stock ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -687,7 +687,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Stock ticker symbol", required: true }
+                                ticker: { type: "string", description: "Stock ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -698,7 +698,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Stock ticker symbol", required: true }
+                                ticker: { type: "string", description: "Stock ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -709,7 +709,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Stock ticker symbol", required: true }
+                                ticker: { type: "string", description: "Stock ticker symbol" }
                             },
                             required: ["ticker"]
                         }
@@ -720,7 +720,7 @@ class UnusualWhalesMCP {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                ticker: { type: "string", description: "Stock ticker symbol", required: true }
+                                ticker: { type: "string", description: "Stock ticker symbol" }
                             },
                             required: ["ticker"]
                         }
