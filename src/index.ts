@@ -459,21 +459,46 @@ class UnusualWhalesAPI {
   }
 }
 
-const api = new UnusualWhalesAPI();
+class UnusualWhalesMCP {
+  private server: Server;
+  private api: UnusualWhalesAPI;
 
-const server = new Server(
-  {
-    name: "unusualwhales-mcp",
-    version: "0.1.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
+  constructor() {
+    this.api = new UnusualWhalesAPI();
+    this.server = new Server(
+      {
+        name: "unusualwhales-mcp",
+        version: "0.1.0",
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      }
+    );
+    
+    this.setupHandlers();
+    this.setupErrorHandling();
   }
-);
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
+  private setupErrorHandling(): void {
+    this.server.onerror = (error) => {
+      console.error("[MCP Error]", error);
+    };
+
+    process.on('SIGINT', async () => {
+      await this.server.close();
+      process.exit(0);
+    });
+  }
+
+  private setupHandlers(): void {
+    this.setupToolHandlers();
+  }
+
+  private setupToolHandlers(): void {
+
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       // Alerts
@@ -834,7 +859,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
@@ -843,47 +868,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       // Alerts
       case "get_alerts":
-        result = await api.getAlerts(args);
+        result = await this.api.getAlerts(args);
         break;
       case "get_alerts_configuration":
-        result = await api.getAlertsConfiguration();
+        result = await this.api.getAlertsConfiguration();
         break;
 
       // Congress
       case "get_congress_trader":
-        result = await api.getCongressTrader(args);
+        result = await this.api.getCongressTrader(args);
         break;
       case "get_congress_late_reports":
-        result = await api.getCongressLateReports(args);
+        result = await this.api.getCongressLateReports(args);
         break;
       case "get_congress_recent_trades":
-        result = await api.getCongressRecentTrades(args);
+        result = await this.api.getCongressRecentTrades(args);
         break;
 
       // Darkpool
       case "get_darkpool_recent":
-        result = await api.getDarkpoolRecent(args);
+        result = await this.api.getDarkpoolRecent(args);
         break;
       case "get_darkpool_ticker":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
         const { ticker, ...otherArgs } = args as any;
-        result = await api.getDarkpoolTicker(ticker, otherArgs);
+        result = await this.api.getDarkpoolTicker(ticker, otherArgs);
         break;
 
       // Earnings
       case "get_earnings_afterhours":
-        result = await api.getEarningsAfterhours(args);
+        result = await this.api.getEarningsAfterhours(args);
         break;
       case "get_earnings_premarket":
-        result = await api.getEarningsPremarket(args);
+        result = await this.api.getEarningsPremarket(args);
         break;
       case "get_earnings_ticker":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getEarningsTicker((args as any).ticker);
+        result = await this.api.getEarningsTicker((args as any).ticker);
         break;
 
       // ETFs
@@ -891,69 +916,69 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getETFExposure((args as any).ticker);
+        result = await this.api.getETFExposure((args as any).ticker);
         break;
       case "get_etf_holdings":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getETFHoldings((args as any).ticker);
+        result = await this.api.getETFHoldings((args as any).ticker);
         break;
       case "get_etf_in_outflow":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getETFInOutflow((args as any).ticker);
+        result = await this.api.getETFInOutflow((args as any).ticker);
         break;
       case "get_etf_info":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getETFInfo((args as any).ticker);
+        result = await this.api.getETFInfo((args as any).ticker);
         break;
       case "get_etf_weights":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getETFWeights((args as any).ticker);
+        result = await this.api.getETFWeights((args as any).ticker);
         break;
 
       // Market
       case "get_market_tide":
-        result = await api.getMarketTide(args);
+        result = await this.api.getMarketTide(args);
         break;
       case "get_market_economic_calendar":
-        result = await api.getMarketEconomicCalendar(args);
+        result = await this.api.getMarketEconomicCalendar(args);
         break;
       case "get_market_fda_calendar":
-        result = await api.getMarketFDACalendar(args);
+        result = await this.api.getMarketFDACalendar(args);
         break;
       case "get_market_spike":
-        result = await api.getMarketSpike(args);
+        result = await this.api.getMarketSpike(args);
         break;
       case "get_market_total_options_volume":
-        result = await api.getMarketTotalOptionsVolume(args);
+        result = await this.api.getMarketTotalOptionsVolume(args);
         break;
 
       // News
       case "get_news_headlines":
-        result = await api.getNewsHeadlines(args);
+        result = await this.api.getNewsHeadlines(args);
         break;
 
       // Option Trades
       case "get_option_trades_flow_alerts":
-        result = await api.getOptionTradesFlowAlerts(args);
+        result = await this.api.getOptionTradesFlowAlerts(args);
         break;
 
       // Screeners
       case "get_screener_analysts":
-        result = await api.getScreenerAnalysts(args);
+        result = await this.api.getScreenerAnalysts(args);
         break;
       case "get_screener_option_contracts":
-        result = await api.getScreenerOptionContracts(args);
+        result = await this.api.getScreenerOptionContracts(args);
         break;
       case "get_screener_stocks":
-        result = await api.getScreenerStocks(args);
+        result = await this.api.getScreenerStocks(args);
         break;
 
       // Stock
@@ -961,49 +986,49 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getStockInfo((args as any).ticker);
+        result = await this.api.getStockInfo((args as any).ticker);
         break;
       case "get_stock_flow_alerts":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getStockFlowAlerts((args as any).ticker);
+        result = await this.api.getStockFlowAlerts((args as any).ticker);
         break;
       case "get_stock_flow_recent":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getStockFlowRecent((args as any).ticker);
+        result = await this.api.getStockFlowRecent((args as any).ticker);
         break;
       case "get_stock_option_chains":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getStockOptionChains((args as any).ticker);
+        result = await this.api.getStockOptionChains((args as any).ticker);
         break;
       case "get_stock_greek_exposure":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getStockGreekExposure((args as any).ticker);
+        result = await this.api.getStockGreekExposure((args as any).ticker);
         break;
       case "get_stock_max_pain":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getStockMaxPain((args as any).ticker);
+        result = await this.api.getStockMaxPain((args as any).ticker);
         break;
       case "get_stock_iv_rank":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getStockIVRank((args as any).ticker);
+        result = await this.api.getStockIVRank((args as any).ticker);
         break;
       case "get_stock_volatility_stats":
         if (!args?.ticker) {
           throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
         }
-        result = await api.getStockVolatilityStats((args as any).ticker);
+        result = await this.api.getStockVolatilityStats((args as any).ticker);
         break;
 
       default:
@@ -1034,24 +1059,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     );
   }
 });
+  }
 
-async function main() {
-  const argv = await yargs(hideBin(process.argv))
-    .option('stdio', {
-      type: 'boolean',
-      default: true,
-      description: 'Use stdio transport'
-    })
-    .help()
-    .argv;
-
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  async run(): Promise<void> {
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    console.error("Unusual Whales MCP server running on stdio");
+  }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error) => {
-    console.error("Server error:", error);
-    process.exit(1);
-  });
-}
+const argv = yargs(hideBin(process.argv))
+  .option('stdio', {
+    type: 'boolean',
+    default: true,
+    description: 'Use stdio transport'
+  })
+  .help()
+  .parse();
+
+const mcpServer = new UnusualWhalesMCP();
+mcpServer.run().catch(console.error);
