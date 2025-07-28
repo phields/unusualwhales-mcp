@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema, Tool } from "@modelcontextprotocol/sdk/types.js";
 import axios from "axios";
 import dotenv from "dotenv";
-import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { z } from "zod";
 
 dotenv.config();
 
@@ -460,605 +459,682 @@ class UnusualWhalesAPI {
 }
 
 class UnusualWhalesMCP {
-  private server: Server;
+  private server: McpServer;
   private api: UnusualWhalesAPI;
 
   constructor() {
     this.api = new UnusualWhalesAPI();
-    this.server = new Server(
-      {
-        name: "unusualwhales-mcp",
-        version: "0.1.0",
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
+    this.server = new McpServer({
+      name: "unusualwhales-mcp",
+      version: "0.1.0",
+    });
     
-    this.setupHandlers();
+    this.setupTools();
     this.setupErrorHandling();
   }
 
   private setupErrorHandling(): void {
-    this.server.onerror = (error) => {
-      console.error("[MCP Error]", error);
-    };
-
     process.on('SIGINT', async () => {
       await this.server.close();
       process.exit(0);
     });
   }
 
-  private setupHandlers(): void {
-    this.setupToolHandlers();
-  }
-
-  private setupToolHandlers(): void {
-
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      // Alerts
+  private setupTools(): void {
+    // Alerts
+    this.server.tool(
+      "get_alerts",
+      "Get triggered alerts for the user",
       {
-        name: "get_alerts",
-        description: "Get triggered alerts for the user",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Number of results to return" },
-            page: { type: "number", description: "Page number" },
-            intraday_only: { type: "boolean", description: "Only intraday alerts" },
-            config_ids: { type: "array", items: { type: "string" }, description: "Alert configuration IDs" },
-            ticker_symbols: { type: "string", description: "Ticker symbols" },
-            noti_types: { type: "array", items: { type: "string" }, description: "Notification types" }
-          }
-        }
+        limit: z.number().optional().describe("Number of results to return"),
+        page: z.number().optional().describe("Page number"),
+        intraday_only: z.boolean().optional().describe("Only intraday alerts"),
+        config_ids: z.array(z.string()).optional().describe("Alert configuration IDs"),
+        ticker_symbols: z.string().optional().describe("Ticker symbols"),
+        noti_types: z.array(z.string()).optional().describe("Notification types")
       },
-      {
-        name: "get_alerts_configuration",
-        description: "Get alert configurations for the user",
-        inputSchema: { type: "object", properties: {} }
-      },
-
-      // Congress
-      {
-        name: "get_congress_trader",
-        description: "Get recent reports by congress member",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Number of results to return" },
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            ticker: { type: "string", description: "Ticker symbol" },
-            name: { type: "string", description: "Congress member name" }
-          }
-        }
-      },
-      {
-        name: "get_congress_late_reports",
-        description: "Get recent late reports by congress members",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Number of results to return" },
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            ticker: { type: "string", description: "Ticker symbol" }
-          }
-        }
-      },
-      {
-        name: "get_congress_recent_trades",
-        description: "Get latest trades by congress members",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Number of results to return" },
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            ticker: { type: "string", description: "Ticker symbol" }
-          }
-        }
-      },
-
-      // Darkpool
-      {
-        name: "get_darkpool_recent",
-        description: "Get latest darkpool trades",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Number of results to return" },
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            min_premium: { type: "number", description: "Minimum premium" },
-            max_premium: { type: "number", description: "Maximum premium" },
-            min_size: { type: "number", description: "Minimum size" },
-            max_size: { type: "number", description: "Maximum size" },
-            min_volume: { type: "number", description: "Minimum volume" },
-            max_volume: { type: "number", description: "Maximum volume" }
-          }
-        }
-      },
-      {
-        name: "get_darkpool_ticker",
-        description: "Get darkpool trades for a specific ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Ticker symbol" },
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            newer_than: { type: "string", description: "Newer than timestamp" },
-            older_than: { type: "string", description: "Older than timestamp" },
-            min_premium: { type: "number", description: "Minimum premium" },
-            max_premium: { type: "number", description: "Maximum premium" },
-            min_size: { type: "number", description: "Minimum size" },
-            max_size: { type: "number", description: "Maximum size" },
-            min_volume: { type: "number", description: "Minimum volume" },
-            max_volume: { type: "number", description: "Maximum volume" },
-            limit: { type: "number", description: "Number of results to return" }
-          },
-          required: ["ticker"]
-        }
-      },
-
-      // Earnings
-      {
-        name: "get_earnings_afterhours",
-        description: "Get afterhours earnings for a date",
-        inputSchema: {
-          type: "object",
-          properties: {
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            limit: { type: "number", description: "Number of results to return" },
-            page: { type: "number", description: "Page number" }
-          }
-        }
-      },
-      {
-        name: "get_earnings_premarket",
-        description: "Get premarket earnings for a date",
-        inputSchema: {
-          type: "object",
-          properties: {
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            limit: { type: "number", description: "Number of results to return" },
-            page: { type: "number", description: "Page number" }
-          }
-        }
-      },
-      {
-        name: "get_earnings_ticker",
-        description: "Get historical earnings data for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-
-      // ETFs
-      {
-        name: "get_etf_exposure",
-        description: "Get ETF exposure data",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "ETF ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_etf_holdings",
-        description: "Get ETF holdings information",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "ETF ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_etf_in_outflow",
-        description: "Get ETF inflow & outflow data",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "ETF ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_etf_info",
-        description: "Get ETF information",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "ETF ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_etf_weights",
-        description: "Get ETF sector & country weights",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "ETF ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-
-      // Market
-      {
-        name: "get_market_tide",
-        description: "Get market tide data",
-        inputSchema: { type: "object", properties: {} }
-      },
-      {
-        name: "get_market_economic_calendar",
-        description: "Get economic calendar events",
-        inputSchema: {
-          type: "object",
-          properties: {
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            limit: { type: "number", description: "Number of results to return" }
-          }
-        }
-      },
-      {
-        name: "get_market_fda_calendar",
-        description: "Get FDA calendar events",
-        inputSchema: {
-          type: "object",
-          properties: {
-            date: { type: "string", description: "Date filter (YYYY-MM-DD)" },
-            limit: { type: "number", description: "Number of results to return" }
-          }
-        }
-      },
-      {
-        name: "get_market_spike",
-        description: "Get SPIKE data (volatility indicator)",
-        inputSchema: { type: "object", properties: {} }
-      },
-      {
-        name: "get_market_total_options_volume",
-        description: "Get total options volume across the market",
-        inputSchema: { type: "object", properties: {} }
-      },
-
-      // News
-      {
-        name: "get_news_headlines",
-        description: "Get news headlines",
-        inputSchema: { type: "object", properties: {} }
-      },
-
-      // Option Trades
-      {
-        name: "get_option_trades_flow_alerts",
-        description: "Get option flow alerts",
-        inputSchema: { type: "object", properties: {} }
-      },
-
-      // Screeners
-      {
-        name: "get_screener_analysts",
-        description: "Get analyst rating screener",
-        inputSchema: { type: "object", properties: {} }
-      },
-      {
-        name: "get_screener_option_contracts",
-        description: "Get hottest chains screener (option contracts)",
-        inputSchema: { type: "object", properties: {} }
-      },
-      {
-        name: "get_screener_stocks",
-        description: "Get stock screener",
-        inputSchema: { type: "object", properties: {} }
-      },
-
-      // Stock
-      {
-        name: "get_stock_info",
-        description: "Get stock information for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Stock ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_stock_flow_alerts",
-        description: "Get flow alerts for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Stock ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_stock_flow_recent",
-        description: "Get recent flows for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Stock ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_stock_option_chains",
-        description: "Get option chains for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Stock ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_stock_greek_exposure",
-        description: "Get Greek exposure for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Stock ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_stock_max_pain",
-        description: "Get max pain data for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Stock ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_stock_iv_rank",
-        description: "Get IV rank for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Stock ticker symbol" }
-          },
-          required: ["ticker"]
-        }
-      },
-      {
-        name: "get_stock_volatility_stats",
-        description: "Get volatility statistics for a ticker",
-        inputSchema: {
-          type: "object",
-          properties: {
-            ticker: { type: "string", description: "Stock ticker symbol" }
-          },
-          required: ["ticker"]
-        }
+      async (params) => {
+        const result = await this.api.getAlerts(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
       }
-    ] as Tool[],
-  };
-});
-
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  try {
-    let result;
-
-    switch (name) {
-      // Alerts
-      case "get_alerts":
-        result = await this.api.getAlerts(args);
-        break;
-      case "get_alerts_configuration":
-        result = await this.api.getAlertsConfiguration();
-        break;
-
-      // Congress
-      case "get_congress_trader":
-        result = await this.api.getCongressTrader(args);
-        break;
-      case "get_congress_late_reports":
-        result = await this.api.getCongressLateReports(args);
-        break;
-      case "get_congress_recent_trades":
-        result = await this.api.getCongressRecentTrades(args);
-        break;
-
-      // Darkpool
-      case "get_darkpool_recent":
-        result = await this.api.getDarkpoolRecent(args);
-        break;
-      case "get_darkpool_ticker":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        const { ticker, ...otherArgs } = args as any;
-        result = await this.api.getDarkpoolTicker(ticker, otherArgs);
-        break;
-
-      // Earnings
-      case "get_earnings_afterhours":
-        result = await this.api.getEarningsAfterhours(args);
-        break;
-      case "get_earnings_premarket":
-        result = await this.api.getEarningsPremarket(args);
-        break;
-      case "get_earnings_ticker":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getEarningsTicker((args as any).ticker);
-        break;
-
-      // ETFs
-      case "get_etf_exposure":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getETFExposure((args as any).ticker);
-        break;
-      case "get_etf_holdings":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getETFHoldings((args as any).ticker);
-        break;
-      case "get_etf_in_outflow":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getETFInOutflow((args as any).ticker);
-        break;
-      case "get_etf_info":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getETFInfo((args as any).ticker);
-        break;
-      case "get_etf_weights":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getETFWeights((args as any).ticker);
-        break;
-
-      // Market
-      case "get_market_tide":
-        result = await this.api.getMarketTide(args);
-        break;
-      case "get_market_economic_calendar":
-        result = await this.api.getMarketEconomicCalendar(args);
-        break;
-      case "get_market_fda_calendar":
-        result = await this.api.getMarketFDACalendar(args);
-        break;
-      case "get_market_spike":
-        result = await this.api.getMarketSpike(args);
-        break;
-      case "get_market_total_options_volume":
-        result = await this.api.getMarketTotalOptionsVolume(args);
-        break;
-
-      // News
-      case "get_news_headlines":
-        result = await this.api.getNewsHeadlines(args);
-        break;
-
-      // Option Trades
-      case "get_option_trades_flow_alerts":
-        result = await this.api.getOptionTradesFlowAlerts(args);
-        break;
-
-      // Screeners
-      case "get_screener_analysts":
-        result = await this.api.getScreenerAnalysts(args);
-        break;
-      case "get_screener_option_contracts":
-        result = await this.api.getScreenerOptionContracts(args);
-        break;
-      case "get_screener_stocks":
-        result = await this.api.getScreenerStocks(args);
-        break;
-
-      // Stock
-      case "get_stock_info":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getStockInfo((args as any).ticker);
-        break;
-      case "get_stock_flow_alerts":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getStockFlowAlerts((args as any).ticker);
-        break;
-      case "get_stock_flow_recent":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getStockFlowRecent((args as any).ticker);
-        break;
-      case "get_stock_option_chains":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getStockOptionChains((args as any).ticker);
-        break;
-      case "get_stock_greek_exposure":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getStockGreekExposure((args as any).ticker);
-        break;
-      case "get_stock_max_pain":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getStockMaxPain((args as any).ticker);
-        break;
-      case "get_stock_iv_rank":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getStockIVRank((args as any).ticker);
-        break;
-      case "get_stock_volatility_stats":
-        if (!args?.ticker) {
-          throw new McpError(ErrorCode.InvalidParams, "ticker parameter is required");
-        }
-        result = await this.api.getStockVolatilityStats((args as any).ticker);
-        break;
-
-      default:
-        throw new McpError(
-          ErrorCode.MethodNotFound,
-          `Tool ${name} not found`
-        );
-    }
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
-
-  } catch (error) {
-    if (error instanceof McpError) {
-      throw error;
-    }
-    
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Error calling tool ${name}: ${errorMessage}`
     );
-  }
-});
+
+    this.server.tool(
+      "get_alerts_configuration",
+      "Get alert configurations for the user",
+      {},
+      async () => {
+        const result = await this.api.getAlertsConfiguration();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // Congress
+    this.server.tool(
+      "get_congress_trader",
+      "Get recent reports by congress member",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        ticker: z.string().optional().describe("Ticker symbol"),
+        name: z.string().optional().describe("Congress member name")
+      },
+      async (params) => {
+        const result = await this.api.getCongressTrader(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_congress_late_reports",
+      "Get recent late reports by congress members",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        ticker: z.string().optional().describe("Ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getCongressLateReports(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_congress_recent_trades",
+      "Get latest trades by congress members",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        ticker: z.string().optional().describe("Ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getCongressRecentTrades(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // Darkpool
+    this.server.tool(
+      "get_darkpool_recent",
+      "Get latest darkpool trades",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        min_premium: z.number().optional().describe("Minimum premium"),
+        max_premium: z.number().optional().describe("Maximum premium"),
+        min_size: z.number().optional().describe("Minimum size"),
+        max_size: z.number().optional().describe("Maximum size"),
+        min_volume: z.number().optional().describe("Minimum volume"),
+        max_volume: z.number().optional().describe("Maximum volume")
+      },
+      async (params) => {
+        const result = await this.api.getDarkpoolRecent(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_darkpool_ticker",
+      "Get darkpool trades for a specific ticker",
+      {
+        ticker: z.string().describe("Ticker symbol"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        newer_than: z.string().optional().describe("Newer than timestamp"),
+        older_than: z.string().optional().describe("Older than timestamp"),
+        min_premium: z.number().optional().describe("Minimum premium"),
+        max_premium: z.number().optional().describe("Maximum premium"),
+        min_size: z.number().optional().describe("Minimum size"),
+        max_size: z.number().optional().describe("Maximum size"),
+        min_volume: z.number().optional().describe("Minimum volume"),
+        max_volume: z.number().optional().describe("Maximum volume"),
+        limit: z.number().optional().describe("Number of results to return")
+      },
+      async (params) => {
+        const { ticker, ...otherParams } = params;
+        const result = await this.api.getDarkpoolTicker(ticker, otherParams);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // Earnings
+    this.server.tool(
+      "get_earnings_afterhours",
+      "Get afterhours earnings for a date",
+      {
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        limit: z.number().optional().describe("Number of results to return"),
+        page: z.number().optional().describe("Page number")
+      },
+      async (params) => {
+        const result = await this.api.getEarningsAfterhours(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_earnings_premarket",
+      "Get premarket earnings for a date",
+      {
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        limit: z.number().optional().describe("Number of results to return"),
+        page: z.number().optional().describe("Page number")
+      },
+      async (params) => {
+        const result = await this.api.getEarningsPremarket(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_earnings_ticker",
+      "Get historical earnings data for a ticker",
+      {
+        ticker: z.string().describe("Ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getEarningsTicker(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // ETFs
+    this.server.tool(
+      "get_etf_exposure",
+      "Get ETF exposure data",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getETFExposure(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_etf_holdings",
+      "Get ETF holdings information",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getETFHoldings(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_etf_in_outflow",
+      "Get ETF inflow & outflow data",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getETFInOutflow(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_etf_info",
+      "Get ETF information",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getETFInfo(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_etf_weights",
+      "Get ETF sector & country weights",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getETFWeights(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // Market
+    this.server.tool(
+      "get_market_tide",
+      "Get market tide data",
+      {},
+      async () => {
+        const result = await this.api.getMarketTide();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_market_economic_calendar",
+      "Get economic calendar events",
+      {
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        limit: z.number().optional().describe("Number of results to return")
+      },
+      async (params) => {
+        const result = await this.api.getMarketEconomicCalendar(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_market_fda_calendar",
+      "Get FDA calendar events",
+      {
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        limit: z.number().optional().describe("Number of results to return")
+      },
+      async (params) => {
+        const result = await this.api.getMarketFDACalendar(params);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_market_spike",
+      "Get SPIKE data (volatility indicator)",
+      {},
+      async () => {
+        const result = await this.api.getMarketSpike();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_market_total_options_volume",
+      "Get total options volume across the market",
+      {},
+      async () => {
+        const result = await this.api.getMarketTotalOptionsVolume();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // News
+    this.server.tool(
+      "get_news_headlines",
+      "Get news headlines",
+      {},
+      async () => {
+        const result = await this.api.getNewsHeadlines();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // Option Trades
+    this.server.tool(
+      "get_option_trades_flow_alerts",
+      "Get option flow alerts",
+      {},
+      async () => {
+        const result = await this.api.getOptionTradesFlowAlerts();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // Screeners
+    this.server.tool(
+      "get_screener_analysts",
+      "Get analyst rating screener",
+      {},
+      async () => {
+        const result = await this.api.getScreenerAnalysts();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_screener_option_contracts",
+      "Get hottest chains screener (option contracts)",
+      {},
+      async () => {
+        const result = await this.api.getScreenerOptionContracts();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_screener_stocks",
+      "Get stock screener",
+      {},
+      async () => {
+        const result = await this.api.getScreenerStocks();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    // Stock
+    this.server.tool(
+      "get_stock_info",
+      "Get stock information for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getStockInfo(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_stock_flow_alerts",
+      "Get flow alerts for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getStockFlowAlerts(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_stock_flow_recent",
+      "Get recent flows for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getStockFlowRecent(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_stock_option_chains",
+      "Get option chains for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getStockOptionChains(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_stock_greek_exposure",
+      "Get Greek exposure for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getStockGreekExposure(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_stock_max_pain",
+      "Get max pain data for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getStockMaxPain(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_stock_iv_rank",
+      "Get IV rank for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getStockIVRank(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
+
+    this.server.tool(
+      "get_stock_volatility_stats",
+      "Get volatility statistics for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        const result = await this.api.getStockVolatilityStats(params.ticker);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+    );
   }
 
   async run(): Promise<void> {
