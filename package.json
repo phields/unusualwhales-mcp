@@ -1,6 +1,6 @@
 {
   "name": "unusualwhales-mcp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "MCP server for Unusual Whales financial data and analytics",
   "type": "module",
   "main": "./build/index.js",
