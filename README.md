@@ -208,6 +208,154 @@ const tickerDarkPool = await server.callTool("get_darkpool_ticker", {
 });
 ```
 
+## Using as a Package in Node.js Projects
+
+This package can be imported and used directly in your Node.js applications, including web frameworks like Hono, Express, or Fastify.
+
+### Installation as Dependency
+
+```bash
+npm install unusualwhales-mcp
+```
+
+### Basic Usage
+
+```javascript
+import { UnusualWhalesMcp } from 'unusualwhales-mcp';
+
+// Create MCP server instance
+const mcpServer = new UnusualWhalesMcp();
+
+// Get the server instance for integration
+const server = mcpServer.getServer();
+
+// Start with different transport types
+await mcpServer.start('stdio');  // For MCP clients
+await mcpServer.start('sse', { endpoint: '/sse', response: res });  // For HTTP SSE
+await mcpServer.start('streamableHttp');  // For HTTP streaming
+```
+
+### Integration with Hono Web Framework
+
+```javascript
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { UnusualWhalesMcp } from 'unusualwhales-mcp';
+
+const app = new Hono();
+const mcpServer = new UnusualWhalesMcp();
+
+// Enable CORS for MCP endpoints
+app.use('/mcp/*', cors({
+  origin: '*',
+  allowHeaders: ['Content-Type'],
+  allowMethods: ['GET', 'POST', 'OPTIONS'],
+}));
+
+// SSE endpoint for MCP over HTTP
+app.get('/mcp/sse', async (c) => {
+  const response = c.env?.response || c.res;
+  
+  // Start MCP server with SSE transport
+  await mcpServer.start('sse', { 
+    endpoint: '/mcp/sse', 
+    response: response 
+  });
+  
+  return c.json({ status: 'SSE endpoint ready' });
+});
+
+// Streamable HTTP endpoint
+app.post('/mcp/message', async (c) => {
+  try {
+    // Create streamable HTTP transport
+    const transport = mcpServer.createStreamableHTTPTransport({
+      sessionIdGenerator: () => crypto.randomUUID()
+    });
+    
+    // Handle MCP message
+    const body = await c.req.json();
+    
+    return c.json({ 
+      status: 'message processed',
+      sessionId: transport.sessionId 
+    });
+  } catch (error) {
+    console.error('MCP endpoint error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Direct API endpoints (bypassing MCP)
+app.get('/api/stock/:ticker', async (c) => {
+  try {
+    const ticker = c.req.param('ticker');
+    const server = mcpServer.getServer();
+    
+    // Call tool directly
+    const result = await server.callTool('get_stock_info', { ticker });
+    
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+export default {
+  port: 3000,
+  fetch: app.fetch,
+};
+```
+
+### Environment Configuration
+
+```bash
+# Set your Unusual Whales API key
+export UNUSUAL_WHALES_API_KEY=your_api_key_here
+
+# Optional: Configure server settings
+export MCP_SERVER_NAME=unusualwhales-mcp
+export MCP_SERVER_VERSION=0.1.3
+```
+
+### Advanced Usage with Custom Transport
+
+```javascript
+import { UnusualWhalesMcp } from 'unusualwhales-mcp';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+
+const mcpServer = new UnusualWhalesMcp();
+
+// Create custom SSE transport
+const customTransport = new SSEServerTransport('/custom-endpoint', response);
+
+// Connect server with custom transport
+await mcpServer.getServer().connect(customTransport);
+
+// Or use the helper methods
+const sseTransport = mcpServer.createSSETransport('/my-endpoint', response);
+const httpTransport = mcpServer.createStreamableHTTPTransport({
+  sessionIdGenerator: () => `session-${Date.now()}`
+});
+```
+
+### TypeScript Support
+
+The package includes full TypeScript definitions:
+
+```typescript
+import { UnusualWhalesMcp } from 'unusualwhales-mcp';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+const mcpServer: UnusualWhalesMcp = new UnusualWhalesMcp();
+const server: McpServer = mcpServer.getServer();
+
+// Full type safety for all API calls
+const stockInfo = await server.callTool('get_stock_info', { 
+  ticker: 'AAPL' 
+});
+```
+
 ## API Coverage
 
 The server provides access to **81 API endpoints** across **12 categories**:

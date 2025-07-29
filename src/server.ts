@@ -1,0 +1,1008 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { z } from "zod";
+
+import {
+  getAlerts,
+  getAlertsConfiguration,
+  getCongressTrader,
+  getCongressLateReports,
+  getCongressRecentTrades,
+  getDarkpoolRecent,
+  getDarkpoolTicker,
+  getEarningsAfterhours,
+  getEarningsPremarket,
+  getEarningsTicker,
+  getETFExposure,
+  getETFHoldings,
+  getETFInOutflow,
+  getETFInfo,
+  getETFWeights,
+  getMarketTide,
+  getMarketEconomicCalendar,
+  getMarketFDACalendar,
+  getMarketSpike,
+  getMarketTotalOptionsVolume,
+  getNewsHeadlines,
+  getOptionTradesFlowAlerts,
+  getScreenerAnalysts,
+  getScreenerOptionContracts,
+  getScreenerStocks,
+  getStockInfo,
+  getStockFlowAlerts,
+  getStockFlowRecent,
+  getStockOptionChains,
+  getStockGreekExposure,
+  getStockMaxPain,
+  getStockIVRank,
+  getStockVolatilityStats,
+} from "./tools.js";
+
+export class UnusualWhalesMcp {
+  public server: McpServer;
+  private transport: StdioServerTransport | SSEServerTransport | StreamableHTTPServerTransport | null = null;
+  
+  constructor() {
+    this.server = new McpServer({
+      name: "unusualwhales-mcp",
+      version: "0.1.3",
+    });
+    
+    this.setupTools();
+  }
+  
+  private setupTools(): void {
+    // Alerts
+    this.server.tool(
+      "get_alerts",
+      "Get triggered alerts for the user",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        page: z.number().optional().describe("Page number"),
+        intraday_only: z.boolean().optional().describe("Only intraday alerts"),
+        config_ids: z.array(z.string()).optional().describe("Alert configuration IDs"),
+        ticker_symbols: z.string().optional().describe("Ticker symbols"),
+        noti_types: z.array(z.string()).optional().describe("Notification types")
+      },
+      async (params) => {
+        try {
+          const result = await getAlerts(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_alerts_configuration",
+      "Get alert configurations for the user",
+      {},
+      async () => {
+        try {
+          const result = await getAlertsConfiguration();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // Congress
+    this.server.tool(
+      "get_congress_trader",
+      "Get recent reports by congress member",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        ticker: z.string().optional().describe("Ticker symbol"),
+        name: z.string().optional().describe("Congress member name")
+      },
+      async (params) => {
+        try {
+          const result = await getCongressTrader(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_congress_late_reports",
+      "Get recent late reports by congress members",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        ticker: z.string().optional().describe("Ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getCongressLateReports(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_congress_recent_trades",
+      "Get latest trades by congress members",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        ticker: z.string().optional().describe("Ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getCongressRecentTrades(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // Darkpool
+    this.server.tool(
+      "get_darkpool_recent",
+      "Get latest darkpool trades",
+      {
+        limit: z.number().optional().describe("Number of results to return"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        min_premium: z.number().optional().describe("Minimum premium"),
+        max_premium: z.number().optional().describe("Maximum premium"),
+        min_size: z.number().optional().describe("Minimum size"),
+        max_size: z.number().optional().describe("Maximum size"),
+        min_volume: z.number().optional().describe("Minimum volume"),
+        max_volume: z.number().optional().describe("Maximum volume")
+      },
+      async (params) => {
+        try {
+          const result = await getDarkpoolRecent(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_darkpool_ticker",
+      "Get darkpool trades for a specific ticker",
+      {
+        ticker: z.string().describe("Ticker symbol"),
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        newer_than: z.string().optional().describe("Newer than timestamp"),
+        older_than: z.string().optional().describe("Older than timestamp"),
+        min_premium: z.number().optional().describe("Minimum premium"),
+        max_premium: z.number().optional().describe("Maximum premium"),
+        min_size: z.number().optional().describe("Minimum size"),
+        max_size: z.number().optional().describe("Maximum size"),
+        min_volume: z.number().optional().describe("Minimum volume"),
+        max_volume: z.number().optional().describe("Maximum volume"),
+        limit: z.number().optional().describe("Number of results to return")
+      },
+      async (params) => {
+        try {
+          const result = await getDarkpoolTicker(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // Earnings
+    this.server.tool(
+      "get_earnings_afterhours",
+      "Get afterhours earnings for a date",
+      {
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        limit: z.number().optional().describe("Number of results to return"),
+        page: z.number().optional().describe("Page number")
+      },
+      async (params) => {
+        try {
+          const result = await getEarningsAfterhours(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_earnings_premarket",
+      "Get premarket earnings for a date",
+      {
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        limit: z.number().optional().describe("Number of results to return"),
+        page: z.number().optional().describe("Page number")
+      },
+      async (params) => {
+        try {
+          const result = await getEarningsPremarket(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_earnings_ticker",
+      "Get historical earnings data for a ticker",
+      {
+        ticker: z.string().describe("Ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getEarningsTicker(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // ETFs
+    this.server.tool(
+      "get_etf_exposure",
+      "Get ETF exposure data",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getETFExposure(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_etf_holdings",
+      "Get ETF holdings information",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getETFHoldings(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_etf_in_outflow",
+      "Get ETF inflow & outflow data",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getETFInOutflow(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_etf_info",
+      "Get ETF information",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getETFInfo(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_etf_weights",
+      "Get ETF sector & country weights",
+      {
+        ticker: z.string().describe("ETF ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getETFWeights(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // Market
+    this.server.tool(
+      "get_market_tide",
+      "Get market tide data",
+      {},
+      async () => {
+        try {
+          const result = await getMarketTide();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_market_economic_calendar",
+      "Get economic calendar events",
+      {
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        limit: z.number().optional().describe("Number of results to return")
+      },
+      async (params) => {
+        try {
+          const result = await getMarketEconomicCalendar(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_market_fda_calendar",
+      "Get FDA calendar events",
+      {
+        date: z.string().optional().describe("Date filter (YYYY-MM-DD)"),
+        limit: z.number().optional().describe("Number of results to return")
+      },
+      async (params) => {
+        try {
+          const result = await getMarketFDACalendar(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_market_spike",
+      "Get SPIKE data (volatility indicator)",
+      {},
+      async () => {
+        try {
+          const result = await getMarketSpike();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_market_total_options_volume",
+      "Get total options volume across the market",
+      {},
+      async () => {
+        try {
+          const result = await getMarketTotalOptionsVolume();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // News
+    this.server.tool(
+      "get_news_headlines",
+      "Get news headlines",
+      {},
+      async () => {
+        try {
+          const result = await getNewsHeadlines();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // Option Trades
+    this.server.tool(
+      "get_option_trades_flow_alerts",
+      "Get option flow alerts",
+      {},
+      async () => {
+        try {
+          const result = await getOptionTradesFlowAlerts();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // Screeners
+    this.server.tool(
+      "get_screener_analysts",
+      "Get analyst rating screener",
+      {},
+      async () => {
+        try {
+          const result = await getScreenerAnalysts();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_screener_option_contracts",
+      "Get hottest chains screener (option contracts)",
+      {},
+      async () => {
+        try {
+          const result = await getScreenerOptionContracts();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_screener_stocks",
+      "Get stock screener",
+      {},
+      async () => {
+        try {
+          const result = await getScreenerStocks();
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // Stock
+    this.server.tool(
+      "get_stock_info",
+      "Get stock information for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getStockInfo(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_stock_flow_alerts",
+      "Get flow alerts for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getStockFlowAlerts(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_stock_flow_recent",
+      "Get recent flows for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getStockFlowRecent(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_stock_option_chains",
+      "Get option chains for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getStockOptionChains(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_stock_greek_exposure",
+      "Get Greek exposure for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getStockGreekExposure(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_stock_max_pain",
+      "Get max pain data for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getStockMaxPain(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_stock_iv_rank",
+      "Get IV rank for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getStockIVRank(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    this.server.tool(
+      "get_stock_volatility_stats",
+      "Get volatility statistics for a ticker",
+      {
+        ticker: z.string().describe("Stock ticker symbol")
+      },
+      async (params) => {
+        try {
+          const result = await getStockVolatilityStats(params);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+  }
+  
+  public async start(transportType: 'stdio' | 'sse' | 'streamableHttp' = 'stdio', options?: { endpoint?: string; response?: any; sessionIdGenerator?: () => string }): Promise<void> {
+    try {
+      if (transportType === 'stdio') {
+        this.transport = new StdioServerTransport();
+      } else if (transportType === 'sse') {
+        if (!options?.response) {
+          throw new Error("Response object is required for SSE transport");
+        }
+        this.transport = new SSEServerTransport(options.endpoint || "/message", options.response);
+      } else if (transportType === 'streamableHttp') {
+        this.transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: options?.sessionIdGenerator,
+          // Add other options as needed
+        });
+      }
+      
+      if (this.transport) {
+        await this.server.connect(this.transport);
+        console.error(`Unusual Whales MCP server running on ${transportType}${options?.endpoint ? ` (endpoint ${options.endpoint})` : ''}`);
+      }
+    } catch (error) {
+      console.error("Failed to start MCP server:", error);
+      throw error;
+    }
+  }
+  
+  // 添加获取服务器实例的方法，用于 Hono 集成
+  public getServer(): McpServer {
+    return this.server;
+  }
+  
+  // 添加创建 SSE 传输的方法
+  public createSSETransport(endpoint: string = "/message", response: any): SSEServerTransport {
+    return new SSEServerTransport(endpoint, response);
+  }
+  
+  // 添加创建 StreamableHTTP 传输的方法
+  public createStreamableHTTPTransport(options?: { sessionIdGenerator?: () => string }): StreamableHTTPServerTransport {
+    return new StreamableHTTPServerTransport({
+      sessionIdGenerator: options?.sessionIdGenerator,
+    });
+  }
+  
+  public async stop(): Promise<void> {
+    if (this.transport) {
+      try {
+        this.transport = null;
+        console.error("Unusual Whales MCP server stopped");
+      } catch (error) {
+        console.error("Failed to stop MCP server:", error);
+        throw error;
+      }
+    }
+  }
+}
+
+// Export the MCP instance
+export const unusualWhalesMcp = new UnusualWhalesMcp();
+
+// If this file is run directly, start the server
+if (typeof require !== 'undefined' && require.main === module) {
+  unusualWhalesMcp.start().catch((error: Error) => {
+    console.error("Server error:", error);
+    process.exit(1);
+  });
+}
