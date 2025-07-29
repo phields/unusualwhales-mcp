@@ -1,19 +1,30 @@
 import axios from "axios";
 import { z } from "zod";
 
-const API_KEY = process.env.UNUSUAL_WHALES_API_KEY;
-if (!API_KEY) {
-  throw new Error("UNUSUAL_WHALES_API_KEY environment variable is required");
-}
-
 const BASE_URL = "https://api.unusualwhales.com";
 
 interface ApiResponse {
   [key: string]: any;
 }
 
+interface EnvironmentConfig {
+  UNUSUAL_WHALES_API_KEY?: string;
+}
+
 // Core API client class
 class UnusualWhalesAPI {
+  private apiKey: string;
+
+  constructor(config?: EnvironmentConfig) {
+    // 优先使用传入的配置，否则尝试从 process.env 获取（如果存在）
+    this.apiKey = config?.UNUSUAL_WHALES_API_KEY || 
+                  (typeof process !== 'undefined' && process.env?.UNUSUAL_WHALES_API_KEY) || 
+                  '';
+    
+    if (!this.apiKey) {
+      throw new Error("UNUSUAL_WHALES_API_KEY is required. Pass it in config or set as environment variable.");
+    }
+  }
   private async makeRequest(endpoint: string, params: Record<string, any> = {}): Promise<ApiResponse> {
     try {
       const cleanParams = Object.fromEntries(
@@ -22,7 +33,7 @@ class UnusualWhalesAPI {
 
       const response = await axios.get(`${BASE_URL}${endpoint}`, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json'
         },
         params: cleanParams,
@@ -450,8 +461,32 @@ class UnusualWhalesAPI {
   }
 }
 
-// Initialize the API client
-const unusualWhalesAPI = new UnusualWhalesAPI();
+// Global API client instance (backward compatibility)
+let unusualWhalesAPI: UnusualWhalesAPI;
+
+// Initialize function that supports environment config
+export function initializeUnusualWhalesAPI(config?: EnvironmentConfig): UnusualWhalesAPI {
+  unusualWhalesAPI = new UnusualWhalesAPI(config);
+  return unusualWhalesAPI;
+}
+
+// Get the current API client instance
+export function getUnusualWhalesAPI(): UnusualWhalesAPI {
+  if (!unusualWhalesAPI) {
+    // 尝试使用默认配置初始化
+    unusualWhalesAPI = new UnusualWhalesAPI();
+  }
+  return unusualWhalesAPI;
+}
+
+// 为了向后兼容，尝试自动初始化
+try {
+  unusualWhalesAPI = new UnusualWhalesAPI();
+} catch (error) {
+  // 如果自动初始化失败，unusualWhalesAPI 将为 undefined
+  // 用户需要手动调用 initializeUnusualWhalesAPI
+  console.warn('Unable to auto-initialize UnusualWhalesAPI. Please call initializeUnusualWhalesAPI() with your API key.');
+}
 
 // Schema definitions
 export const getAlertsSchema = z.object({
@@ -490,134 +525,134 @@ export const getTickerSchema = z.object({
 
 // Core tool functions
 export async function getAlerts(params: z.infer<typeof getAlertsSchema>): Promise<any> {
-  return unusualWhalesAPI.getAlerts(params);
+  return getUnusualWhalesAPI().getAlerts(params);
 }
 
 export async function getAlertsConfiguration(): Promise<any> {
-  return unusualWhalesAPI.getAlertsConfiguration();
+  return getUnusualWhalesAPI().getAlertsConfiguration();
 }
 
 export async function getCongressTrader(params: z.infer<typeof getCongressTraderSchema>): Promise<any> {
-  return unusualWhalesAPI.getCongressTrader(params);
+  return getUnusualWhalesAPI().getCongressTrader(params);
 }
 
 export async function getCongressLateReports(params: any = {}): Promise<any> {
-  return unusualWhalesAPI.getCongressLateReports(params);
+  return getUnusualWhalesAPI().getCongressLateReports(params);
 }
 
 export async function getCongressRecentTrades(params: any = {}): Promise<any> {
-  return unusualWhalesAPI.getCongressRecentTrades(params);
+  return getUnusualWhalesAPI().getCongressRecentTrades(params);
 }
 
 export async function getDarkpoolRecent(params: any = {}): Promise<any> {
-  return unusualWhalesAPI.getDarkpoolRecent(params);
+  return getUnusualWhalesAPI().getDarkpoolRecent(params);
 }
 
 export async function getDarkpoolTicker(params: z.infer<typeof getDarkpoolTickerSchema>): Promise<any> {
   const { ticker, ...otherParams } = params;
-  return unusualWhalesAPI.getDarkpoolTicker(ticker, otherParams);
+  return getUnusualWhalesAPI().getDarkpoolTicker(ticker, otherParams);
 }
 
 export async function getEarningsAfterhours(params: any = {}): Promise<any> {
-  return unusualWhalesAPI.getEarningsAfterhours(params);
+  return getUnusualWhalesAPI().getEarningsAfterhours(params);
 }
 
 export async function getEarningsPremarket(params: any = {}): Promise<any> {
-  return unusualWhalesAPI.getEarningsPremarket(params);
+  return getUnusualWhalesAPI().getEarningsPremarket(params);
 }
 
 export async function getEarningsTicker(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getEarningsTicker(params.ticker);
+  return getUnusualWhalesAPI().getEarningsTicker(params.ticker);
 }
 
 export async function getETFExposure(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getETFExposure(params.ticker);
+  return getUnusualWhalesAPI().getETFExposure(params.ticker);
 }
 
 export async function getETFHoldings(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getETFHoldings(params.ticker);
+  return getUnusualWhalesAPI().getETFHoldings(params.ticker);
 }
 
 export async function getETFInOutflow(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getETFInOutflow(params.ticker);
+  return getUnusualWhalesAPI().getETFInOutflow(params.ticker);
 }
 
 export async function getETFInfo(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getETFInfo(params.ticker);
+  return getUnusualWhalesAPI().getETFInfo(params.ticker);
 }
 
 export async function getETFWeights(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getETFWeights(params.ticker);
+  return getUnusualWhalesAPI().getETFWeights(params.ticker);
 }
 
 export async function getMarketTide(): Promise<any> {
-  return unusualWhalesAPI.getMarketTide();
+  return getUnusualWhalesAPI().getMarketTide();
 }
 
 export async function getMarketEconomicCalendar(params: any = {}): Promise<any> {
-  return unusualWhalesAPI.getMarketEconomicCalendar(params);
+  return getUnusualWhalesAPI().getMarketEconomicCalendar(params);
 }
 
 export async function getMarketFDACalendar(params: any = {}): Promise<any> {
-  return unusualWhalesAPI.getMarketFDACalendar(params);
+  return getUnusualWhalesAPI().getMarketFDACalendar(params);
 }
 
 export async function getMarketSpike(): Promise<any> {
-  return unusualWhalesAPI.getMarketSpike();
+  return getUnusualWhalesAPI().getMarketSpike();
 }
 
 export async function getMarketTotalOptionsVolume(): Promise<any> {
-  return unusualWhalesAPI.getMarketTotalOptionsVolume();
+  return getUnusualWhalesAPI().getMarketTotalOptionsVolume();
 }
 
 export async function getNewsHeadlines(): Promise<any> {
-  return unusualWhalesAPI.getNewsHeadlines();
+  return getUnusualWhalesAPI().getNewsHeadlines();
 }
 
 export async function getOptionTradesFlowAlerts(): Promise<any> {
-  return unusualWhalesAPI.getOptionTradesFlowAlerts();
+  return getUnusualWhalesAPI().getOptionTradesFlowAlerts();
 }
 
 export async function getScreenerAnalysts(): Promise<any> {
-  return unusualWhalesAPI.getScreenerAnalysts();
+  return getUnusualWhalesAPI().getScreenerAnalysts();
 }
 
 export async function getScreenerOptionContracts(): Promise<any> {
-  return unusualWhalesAPI.getScreenerOptionContracts();
+  return getUnusualWhalesAPI().getScreenerOptionContracts();
 }
 
 export async function getScreenerStocks(): Promise<any> {
-  return unusualWhalesAPI.getScreenerStocks();
+  return getUnusualWhalesAPI().getScreenerStocks();
 }
 
 export async function getStockInfo(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getStockInfo(params.ticker);
+  return getUnusualWhalesAPI().getStockInfo(params.ticker);
 }
 
 export async function getStockFlowAlerts(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getStockFlowAlerts(params.ticker);
+  return getUnusualWhalesAPI().getStockFlowAlerts(params.ticker);
 }
 
 export async function getStockFlowRecent(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getStockFlowRecent(params.ticker);
+  return getUnusualWhalesAPI().getStockFlowRecent(params.ticker);
 }
 
 export async function getStockOptionChains(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getStockOptionChains(params.ticker);
+  return getUnusualWhalesAPI().getStockOptionChains(params.ticker);
 }
 
 export async function getStockGreekExposure(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getStockGreekExposure(params.ticker);
+  return getUnusualWhalesAPI().getStockGreekExposure(params.ticker);
 }
 
 export async function getStockMaxPain(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getStockMaxPain(params.ticker);
+  return getUnusualWhalesAPI().getStockMaxPain(params.ticker);
 }
 
 export async function getStockIVRank(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getStockIVRank(params.ticker);
+  return getUnusualWhalesAPI().getStockIVRank(params.ticker);
 }
 
 export async function getStockVolatilityStats(params: z.infer<typeof getTickerSchema>): Promise<any> {
-  return unusualWhalesAPI.getStockVolatilityStats(params.ticker);
+  return getUnusualWhalesAPI().getStockVolatilityStats(params.ticker);
 }

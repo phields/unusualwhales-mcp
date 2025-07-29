@@ -38,13 +38,23 @@ import {
   getStockMaxPain,
   getStockIVRank,
   getStockVolatilityStats,
+  initializeUnusualWhalesAPI
 } from "./tools.js";
+
+interface EnvironmentConfig {
+  UNUSUAL_WHALES_API_KEY?: string;
+}
 
 export class UnusualWhalesMcp {
   public server: McpServer;
   private transport: StdioServerTransport | SSEServerTransport | StreamableHTTPServerTransport | null = null;
   
-  constructor() {
+  constructor(config?: EnvironmentConfig) {
+    // 如果提供了配置，初始化 API 客户端
+    if (config) {
+      initializeUnusualWhalesAPI(config);
+    }
+    
     this.server = new McpServer({
       name: "unusualwhales-mcp",
       version: "0.1.3",
@@ -996,13 +1006,31 @@ export class UnusualWhalesMcp {
   }
 }
 
-// Export the MCP instance
-export const unusualWhalesMcp = new UnusualWhalesMcp();
+// Export a function to create MCP instance with config (for Cloudflare Workers)
+export function createUnusualWhalesMcp(config?: EnvironmentConfig): UnusualWhalesMcp {
+  return new UnusualWhalesMcp(config);
+}
+
+// Export the MCP instance (backward compatibility - may fail without API key)
+export let unusualWhalesMcp: UnusualWhalesMcp | null = null;
+
+try {
+  unusualWhalesMcp = new UnusualWhalesMcp();
+} catch (error) {
+  // 在 Cloudflare Workers 或其他环境中，这可能会失败
+  // 用户需要使用 createUnusualWhalesMcp 函数手动创建实例
+  console.warn('Unable to auto-initialize UnusualWhalesMcp. Use createUnusualWhalesMcp() with your API key.');
+}
 
 // If this file is run directly, start the server
 if (typeof require !== 'undefined' && require.main === module) {
-  unusualWhalesMcp.start().catch((error: Error) => {
-    console.error("Server error:", error);
+  if (unusualWhalesMcp) {
+    unusualWhalesMcp.start().catch((error: Error) => {
+      console.error("Server error:", error);
+      process.exit(1);
+    });
+  } else {
+    console.error("Unable to start server: API key not configured. Please set UNUSUAL_WHALES_API_KEY environment variable.");
     process.exit(1);
-  });
+  }
 }
