@@ -1,4 +1,3 @@
-import axios from "axios";
 import { z } from "zod";
 
 const BASE_URL = "https://api.unusualwhales.com";
@@ -7,7 +6,7 @@ interface ApiResponse {
   [key: string]: any;
 }
 
-interface EnvironmentConfig {
+export interface EnvironmentConfig {
   UNUSUAL_WHALES_API_KEY?: string;
 }
 
@@ -25,29 +24,63 @@ class UnusualWhalesAPI {
       throw new Error("UNUSUAL_WHALES_API_KEY is required. Pass it in config or set as environment variable.");
     }
   }
+  
   private async makeRequest(endpoint: string, params: Record<string, any> = {}): Promise<ApiResponse> {
     try {
       const cleanParams = Object.fromEntries(
         Object.entries(params).filter(([_, value]) => value !== undefined && value !== null)
       );
 
-      const response = await axios.get(`${BASE_URL}${endpoint}`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        params: cleanParams,
-        timeout: 30000
+      // 构建查询字符串
+      const searchParams = new URLSearchParams();
+      Object.entries(cleanParams).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach(v => searchParams.append(key, String(v)));
+        } else {
+          searchParams.append(key, String(value));
+        }
       });
 
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const message = error.response?.data?.message || error.message;
-        throw new Error(`API Error (${status}): ${message}`);
+      const url = `${BASE_URL}${endpoint}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+
+      // 创建 AbortController 用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          let errorMessage;
+          try {
+            const parsed = JSON.parse(errorData);
+            errorMessage = parsed.message || errorData;
+          } catch {
+            errorMessage = errorData;
+          }
+          throw new Error(`API Error (${response.status}): ${errorMessage}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
       }
-      throw error;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`Request failed: ${String(error)}`);
     }
   }
 
@@ -462,7 +495,7 @@ class UnusualWhalesAPI {
 }
 
 // Global API client instance (backward compatibility)
-let unusualWhalesAPI: UnusualWhalesAPI;
+let unusualWhalesAPI: UnusualWhalesAPI | null = null;
 
 // Initialize function that supports environment config
 export function initializeUnusualWhalesAPI(config?: EnvironmentConfig): UnusualWhalesAPI {
@@ -473,19 +506,32 @@ export function initializeUnusualWhalesAPI(config?: EnvironmentConfig): UnusualW
 // Get the current API client instance
 export function getUnusualWhalesAPI(): UnusualWhalesAPI {
   if (!unusualWhalesAPI) {
-    // 尝试使用默认配置初始化
-    unusualWhalesAPI = new UnusualWhalesAPI();
+    // 检查是否在 Node.js 环境中且有 process.env
+    if (typeof process !== 'undefined' && process.env?.UNUSUAL_WHALES_API_KEY) {
+      // 尝试使用默认配置初始化
+      unusualWhalesAPI = new UnusualWhalesAPI();
+    } else {
+      throw new Error('UnusualWhalesAPI not initialized. Please call initializeUnusualWhalesAPI() with your API key first.');
+    }
   }
   return unusualWhalesAPI;
 }
 
-// 为了向后兼容，尝试自动初始化
-try {
-  unusualWhalesAPI = new UnusualWhalesAPI();
-} catch (error) {
-  // 如果自动初始化失败，unusualWhalesAPI 将为 undefined
-  // 用户需要手动调用 initializeUnusualWhalesAPI
-  console.warn('Unable to auto-initialize UnusualWhalesAPI. Please call initializeUnusualWhalesAPI() with your API key.');
+// 检查是否可以自动初始化（仅在 Node.js 环境中）
+function canAutoInitialize(): boolean {
+  return typeof process !== 'undefined' && 
+         typeof process.env !== 'undefined' && 
+         !!process.env.UNUSUAL_WHALES_API_KEY;
+}
+
+// 为了向后兼容，尝试自动初始化（仅在合适的环境中）
+if (canAutoInitialize()) {
+  try {
+    unusualWhalesAPI = new UnusualWhalesAPI();
+  } catch (error) {
+    // 如果自动初始化失败，保持为 null
+    console.warn('Unable to auto-initialize UnusualWhalesAPI. Please call initializeUnusualWhalesAPI() with your API key.');
+  }
 }
 
 // Schema definitions

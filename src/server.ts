@@ -41,7 +41,7 @@ import {
   initializeUnusualWhalesAPI
 } from "./tools.js";
 
-interface EnvironmentConfig {
+export interface EnvironmentConfig {
   UNUSUAL_WHALES_API_KEY?: string;
 }
 
@@ -1014,16 +1014,28 @@ export function createUnusualWhalesMcp(config?: EnvironmentConfig): UnusualWhale
 // Export the MCP instance (backward compatibility - may fail without API key)
 export let unusualWhalesMcp: UnusualWhalesMcp | null = null;
 
-try {
-  unusualWhalesMcp = new UnusualWhalesMcp();
-} catch (error) {
-  // 在 Cloudflare Workers 或其他环境中，这可能会失败
-  // 用户需要使用 createUnusualWhalesMcp 函数手动创建实例
-  console.warn('Unable to auto-initialize UnusualWhalesMcp. Use createUnusualWhalesMcp() with your API key.');
+// 检查是否可以自动初始化（仅在 Node.js 环境中）
+function canAutoInitialize(): boolean {
+  return typeof process !== 'undefined' && 
+         typeof process.env !== 'undefined' && 
+         !!process.env.UNUSUAL_WHALES_API_KEY;
+}
+
+// 为了向后兼容，尝试自动初始化（仅在合适的环境中）
+if (canAutoInitialize()) {
+  try {
+    unusualWhalesMcp = new UnusualWhalesMcp();
+  } catch (error) {
+    // 在 Cloudflare Workers 或其他环境中，这可能会失败
+    // 用户需要使用 createUnusualWhalesMcp 函数手动创建实例
+    console.warn('Unable to auto-initialize UnusualWhalesMcp. Use createUnusualWhalesMcp() with your API key.');
+  }
 }
 
 // If this file is run directly, start the server
-if (typeof require !== 'undefined' && require.main === module) {
+if (typeof require !== 'undefined' && 
+    typeof module !== 'undefined' && 
+    require.main === module) {
   if (unusualWhalesMcp) {
     unusualWhalesMcp.start().catch((error: Error) => {
       console.error("Server error:", error);

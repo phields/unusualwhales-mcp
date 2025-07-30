@@ -6,5 +6,17 @@ export * from "./server.js";
 
 // Export types and schemas
 export type {
-  // You can add specific type exports here if needed
+  EnvironmentConfig
+} from "./tools.js";
+
+// Convenience exports for common usage patterns
+export { 
+  UnusualWhalesMcp,
+  createUnusualWhalesMcp,
+  unusualWhalesMcp
+} from "./server.js";
+
+export {
+  initializeUnusualWhalesAPI,
+  getUnusualWhalesAPI
 } from "./tools.js";
