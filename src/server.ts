@@ -620,11 +620,17 @@ export class UnusualWhalesMcp {
     // News
     this.server.tool(
       "get_news_headlines",
-      "Get news headlines",
-      {},
-      async () => {
+      "Get latest news headlines for financial markets with filtering options",
+      {
+        limit: z.number().min(1).max(100).optional().describe("How many items to return (default: 50, max: 100, min: 1)"),
+        major_only: z.boolean().optional().describe("When set to true, only returns major/significant news (default: false)"),
+        page: z.number().optional().describe("Page number (use with limit). Starts on page 0"),
+        search_term: z.string().optional().describe("A search term to filter news headlines by content"),
+        sources: z.string().optional().describe("A comma-separated list of news sources to filter by (e.g., 'Reuters,Bloomberg')")
+      },
+      async (params) => {
         try {
-          const result = await getNewsHeadlines();
+          const result = await getNewsHeadlines(params);
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };
@@ -645,11 +651,40 @@ export class UnusualWhalesMcp {
     // Option Trades
     this.server.tool(
       "get_option_trades_flow_alerts",
-      "Get option flow alerts",
-      {},
-      async () => {
+      "Get option flow alerts showing significant option trades and unusual activity",
+      {
+        all_opening: z.boolean().optional().describe("Boolean flag whether all transactions are opening transactions based on OI, Size & Volume (default: true)"),
+        is_ask_side: z.boolean().optional().describe("Boolean flag whether a transaction is ask side (default: true)"),
+        is_bid_side: z.boolean().optional().describe("Boolean flag whether a transaction is bid side (default: true)"),
+        is_call: z.boolean().optional().describe("Boolean flag whether a transaction is a call (default: true)"),
+        is_floor: z.boolean().optional().describe("Boolean flag whether a transaction is from the floor (default: true)"),
+        is_otm: z.boolean().optional().describe("Only include contracts which are currently out of the money"),
+        is_put: z.boolean().optional().describe("Boolean flag whether a transaction is a put (default: true)"),
+        is_sweep: z.boolean().optional().describe("Boolean flag whether a transaction is a intermarket sweep (default: true)"),
+        issue_types: z.array(z.enum(["Common Stock", "ETF", "Index", "ADR"])).optional().describe("An array of 1 or more issue types"),
+        limit: z.number().min(1).max(200).optional().describe("How many items to return (default: 100, max: 200, min: 1)"),
+        max_diff: z.string().optional().describe("The maximum OTM diff of a contract"),
+        max_dte: z.number().min(0).optional().describe("The maximum days to expiry (min: 0)"),
+        max_open_interest: z.number().min(0).optional().describe("The maximum open interest on that alert's contract"),
+        max_premium: z.number().min(0).optional().describe("The maximum premium on that alert (min: 0)"),
+        max_size: z.number().min(0).optional().describe("The maximum size on that alert (min: 0)"),
+        max_volume: z.number().min(0).optional().describe("The maximum volume on that alert's contract"),
+        max_volume_oi_ratio: z.number().min(0).optional().describe("The maximum ratio of contract volume to contract open interest"),
+        min_diff: z.string().optional().describe("The minimum OTM diff of a contract"),
+        min_dte: z.number().min(0).optional().describe("The minimum days to expiry (min: 0)"),
+        min_open_interest: z.number().min(0).optional().describe("The minimum open interest on that alert's contract"),
+        min_premium: z.number().min(0).optional().describe("The minimum premium on that alert (min: 0)"),
+        min_size: z.number().min(0).optional().describe("The minimum size on that alert (min: 0)"),
+        min_volume: z.number().min(0).optional().describe("The minimum volume on that alert's contract"),
+        min_volume_oi_ratio: z.number().min(0).optional().describe("The minimum ratio of contract volume to contract open interest"),
+        newer_than: z.string().optional().describe("Unix time in milliseconds/seconds or ISO date (2024-01-25) - no older results will be returned"),
+        older_than: z.string().optional().describe("Unix time in milliseconds/seconds or ISO date (2024-01-25) - no newer results will be returned"),
+        rule_name: z.array(z.enum(["FloorTradeSmallCap", "FloorTradeMidCap", "RepeatedHits", "RepeatedHitsAscendingFill", "RepeatedHitsDescendingFill", "FloorTradeLargeCap", "OtmEarningsFloor", "LowHistoricVolumeFloor", "SweepsFollowedByFloor"])).optional().describe("An array of 1 or more rule names"),
+        ticker_symbol: z.string().optional().describe("A comma separated list of tickers. To exclude certain tickers prefix the first ticker with a -")
+      },
+      async (params) => {
         try {
-          const result = await getOptionTradesFlowAlerts();
+          const result = await getOptionTradesFlowAlerts(params);
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };

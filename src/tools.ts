@@ -651,12 +651,12 @@ export async function getMarketTotalOptionsVolume(): Promise<any> {
   return getUnusualWhalesAPI().getMarketTotalOptionsVolume();
 }
 
-export async function getNewsHeadlines(): Promise<any> {
-  return getUnusualWhalesAPI().getNewsHeadlines();
+export async function getNewsHeadlines(params: any = {}): Promise<any> {
+  return getUnusualWhalesAPI().getNewsHeadlines(params);
 }
 
-export async function getOptionTradesFlowAlerts(): Promise<any> {
-  return getUnusualWhalesAPI().getOptionTradesFlowAlerts();
+export async function getOptionTradesFlowAlerts(params: any = {}): Promise<any> {
+  return getUnusualWhalesAPI().getOptionTradesFlowAlerts(params);
 }
 
 export async function getScreenerAnalysts(): Promise<any> {
